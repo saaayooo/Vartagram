@@ -103,10 +103,10 @@ def build_configuration_from_json(path):
             appstore_id=configuration_dict['appstore_id'],
             app_specific_url_scheme=configuration_dict['app_specific_url_scheme'],
             premium_iap_product_id=configuration_dict['premium_iap_product_id'],
-            enable_siri=configuration_dict['enable_siri'],
-            enable_icloud=configuration_dict['enable_icloud'],
-            enable_watch=configuration_dict['enable_watch'],
-            is_non_dev_account=configuration_dict['is_non_dev_account']
+            enable_siri=configuration_dict.get('enable_siri', True),
+            enable_icloud=configuration_dict.get('enable_icloud', True),
+            enable_watch=configuration_dict.get('enable_watch', False),
+            is_non_dev_account=configuration_dict.get('is_non_dev_account', False)
         )
 
 

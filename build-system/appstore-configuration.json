@@ -10,5 +10,7 @@
 	"app_specific_url_scheme": "tg",
 	"premium_iap_product_id": "org.telegram.telegramPremium.monthly",
 	"enable_siri": true,
-	"enable_icloud": true
+	"enable_icloud": true,
+	"enable_watch": false,
+	"is_non_dev_account": false
 }
