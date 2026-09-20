@@ -633,33 +633,29 @@ def patch_codesigningtool():
                 with open(p, 'r', encoding='utf-8') as f:
                     content = f.read()
 
-                old_err = 'print("ERROR: Unable to find an identity on the system matching the "'
-                if old_err in content:
-                    lines = content.split('\n')
-                    new_lines = []
-                    i = 0
-                    while i < len(lines):
-                        line = lines[i]
-                        if 'if identity is None:' in line and i + 1 < len(lines) and 'Unable to find an identity' in lines[i+1]:
-                            new_lines.append('  if identity is None:')
-                            new_lines.append('    print("Warning: Identity not found for %s, falling back to ad-hoc identity \'-\'" % args.mobileprovision, file=sys.stderr)')
-                            new_lines.append('    identity = "-"')
-                            while i < len(lines) and 'return 1' not in lines[i]:
-                                i += 1
-                            i += 1
-                            continue
-                        elif 'ERROR: No signing identity found for' in line:
-                            new_lines.append('      print("Warning: No signing identity for %s, using ad-hoc" % identity, file=sys.stderr)')
-                            new_lines.append('      identity = "-"')
-                            while i < len(lines) and 'return -1' not in lines[i]:
-                                i += 1
-                            i += 1
-                            continue
-                        new_lines.append(line)
-                        i += 1
-                    with open(p, 'w', encoding='utf-8') as f:
-                        f.write('\n'.join(new_lines))
-                    print(f'Successfully patched {p} to allow ad-hoc code signing without valid certificates!')
+                import re
+                if 'ERROR: Unable to find an identity on the system' in content:
+                    content = re.sub(
+                        r'if identity is None:\s+print\(\s*"ERROR: Unable to find an identity.*?return 1',
+                        'if identity is None:\n    print("Warning: No identity found for %s, using ad-hoc" % args.mobileprovision, file=sys.stderr)\n    identity = "-"',
+                        content,
+                        flags=re.DOTALL
+                    )
+
+                if 'ERROR: No signing identity found for' in content:
+                    content = re.sub(
+                        r'else:\s+print\(\s*"ERROR: No signing identity found.*?return -1',
+                        'else:\n      print("Warning: No signing identity for %s, using ad-hoc" % identity, file=sys.stderr)\n      identity = "-"',
+                        content,
+                        flags=re.DOTALL
+                    )
+
+                with open(p, 'w', encoding='utf-8') as f:
+                    f.write(content)
+
+                import py_compile
+                py_compile.compile(p, doraise=True)
+                print(f'Successfully patched and verified syntax of {p}!')
             except Exception as e:
                 print(f'Warning: failed to patch {p}: {e}')
 
