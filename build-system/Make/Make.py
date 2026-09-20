@@ -698,6 +698,19 @@ def build(bazel, arguments):
 
     bazel_command_line.invoke_build()
 
+    built_ipa_path_prefix = 'bazel-bin/Telegram'
+    ipa_paths = glob.glob('{}/Telegram.ipa'.format(built_ipa_path_prefix))
+    if len(ipa_paths) > 0:
+        os.makedirs('artifacts', exist_ok=True)
+        shutil.copyfile(ipa_paths[0], 'artifacts/Telegram.ipa')
+        print(f"Copied {ipa_paths[0]} to artifacts/Telegram.ipa")
+        gh_workspace = os.getenv('GITHUB_WORKSPACE')
+        if gh_workspace:
+            out_dir = os.path.join(gh_workspace, 'output')
+            os.makedirs(out_dir, exist_ok=True)
+            shutil.copyfile(ipa_paths[0], os.path.join(out_dir, 'AyuGram.ipa'))
+            print(f"Copied {ipa_paths[0]} to {os.path.join(out_dir, 'AyuGram.ipa')}")
+
     if arguments.outputBuildArtifactsPath is not None:
         artifacts_path = os.path.abspath(arguments.outputBuildArtifactsPath)
         if os.path.exists(artifacts_path + '/Telegram.ipa'):
