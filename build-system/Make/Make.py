@@ -497,6 +497,7 @@ def resolve_codesigning(arguments, base_path, build_configuration, provisioning_
 
 
 def resolve_configuration(base_path, bazel_command_line: BazelCommandLine, arguments, additional_codesigning_output_path):
+    patch_codesigningtool()
     configuration_repository_path = '{}/build-input/configuration-repository'.format(base_path)
     os.makedirs(configuration_repository_path, exist_ok=True)
 
@@ -621,7 +622,50 @@ def generate_project(bazel, arguments):
     call_executable(['open', xcodeproj_path])
 
 
+def patch_codesigningtool():
+    possible_paths = [
+        'build-system/bazel-rules/rules_apple/tools/codesigningtool/codesigningtool.py',
+        '/Users/Shared/telegram-ios/build-system/bazel-rules/rules_apple/tools/codesigningtool/codesigningtool.py'
+    ]
+    for p in possible_paths:
+        if os.path.exists(p):
+            try:
+                with open(p, 'r', encoding='utf-8') as f:
+                    content = f.read()
+
+                old_err = 'print("ERROR: Unable to find an identity on the system matching the "'
+                if old_err in content:
+                    lines = content.split('\n')
+                    new_lines = []
+                    i = 0
+                    while i < len(lines):
+                        line = lines[i]
+                        if 'if identity is None:' in line and i + 1 < len(lines) and 'Unable to find an identity' in lines[i+1]:
+                            new_lines.append('  if identity is None:')
+                            new_lines.append('    print("Warning: Identity not found for %s, falling back to ad-hoc identity \'-\'" % args.mobileprovision, file=sys.stderr)')
+                            new_lines.append('    identity = "-"')
+                            while i < len(lines) and 'return 1' not in lines[i]:
+                                i += 1
+                            i += 1
+                            continue
+                        elif 'ERROR: No signing identity found for' in line:
+                            new_lines.append('      print("Warning: No signing identity for %s, using ad-hoc" % identity, file=sys.stderr)')
+                            new_lines.append('      identity = "-"')
+                            while i < len(lines) and 'return -1' not in lines[i]:
+                                i += 1
+                            i += 1
+                            continue
+                        new_lines.append(line)
+                        i += 1
+                    with open(p, 'w', encoding='utf-8') as f:
+                        f.write('\n'.join(new_lines))
+                    print(f'Successfully patched {p} to allow ad-hoc code signing without valid certificates!')
+            except Exception as e:
+                print(f'Warning: failed to patch {p}: {e}')
+
+
 def build(bazel, arguments):
+    patch_codesigningtool()
     bazel_command_line = BazelCommandLine(
         bazel=bazel,
         override_bazel_version=arguments.overrideBazelVersion,
