@@ -1227,9 +1227,22 @@ public class Account {
         
         self.mediaReferenceRevalidationContext = MediaReferenceRevalidationContext()
         
+        let effectiveShouldKeepOnlinePresence = combineLatest(
+            self.shouldKeepOnlinePresence.get(),
+            self.postbox.preferencesView(keys: [ApplicationSpecificPreferencesKeys.ptgAccountSettings])
+        )
+        |> map { shouldKeepOnline, view -> Bool in
+            let settings = view.values[ApplicationSpecificPreferencesKeys.ptgAccountSettings]?.get(PtgAccountSettings.self) ?? .default
+            if settings.ghostModeOnline {
+                return false
+            }
+            return shouldKeepOnline
+        }
+        |> distinctUntilChanged
+        
         self.stateManager = AccountStateManager(accountPeerId: self.peerId, accountManager: accountManager, postbox: self.postbox, network: self.network, callSessionManager: self.callSessionManager, addIsContactUpdates: { [weak self] updates in
             self?.contactSyncManager?.addIsContactUpdates(updates)
-        }, shouldKeepOnlinePresence: self.shouldKeepOnlinePresence.get(), peerInputActivityManager: self.peerInputActivityManager, auxiliaryMethods: auxiliaryMethods)
+        }, shouldKeepOnlinePresence: effectiveShouldKeepOnlinePresence, peerInputActivityManager: self.peerInputActivityManager, auxiliaryMethods: auxiliaryMethods)
         
         self.viewTracker = AccountViewTracker(account: self)
         self.viewTracker.resetPeerHoleManagement = { [weak self] peerId in
@@ -1248,7 +1261,7 @@ public class Account {
         
         self.contactSyncManager = ContactSyncManager(postbox: postbox, network: network, accountPeerId: peerId, stateManager: self.stateManager)
         self.localInputActivityManager = PeerInputActivityManager()
-        self.accountPresenceManager = AccountPresenceManager(shouldKeepOnlinePresence: self.shouldKeepOnlinePresence.get(), onlineUpdatePeriodMs: self.onlineUpdatePeriodMs.get(), network: network)
+        self.accountPresenceManager = AccountPresenceManager(shouldKeepOnlinePresence: effectiveShouldKeepOnlinePresence, onlineUpdatePeriodMs: self.onlineUpdatePeriodMs.get(), network: network)
         self.onlineUpdatePeriodMs.set(
             postbox.preferencesView(keys: [PreferencesKeys.networkSettings])
             |> map { view in

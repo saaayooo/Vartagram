@@ -119,14 +119,21 @@ func managedSynchronizeViewStoriesOperations(postbox: Postbox, network: Network,
 }
 
 private func pushStoriesAreSeen(postbox: Postbox, network: Network, stateManager: AccountStateManager, peer: Peer, operation: SynchronizeViewStoriesOperation) -> Signal<Void, NoError> {
-    guard let inputPeer = apiInputPeer(peer) else {
-        return .complete()
+    return postbox.transaction { transaction -> Signal<Void, NoError> in
+        let ptgAccountSettings = PtgAccountSettings(transaction)
+        if ptgAccountSettings.ghostModeStories {
+            return .complete()
+        }
+        guard let inputPeer = apiInputPeer(peer) else {
+            return .complete()
+        }
+        return network.request(Api.functions.stories.readStories(peer: inputPeer, maxId: operation.storyId))
+        |> `catch` { _ -> Signal<[Int32], NoError> in
+            return .single([])
+        }
+        |> map { _ -> Void in
+            return Void()
+        }
     }
-    return network.request(Api.functions.stories.readStories(peer: inputPeer, maxId: operation.storyId))
-    |> `catch` { _ -> Signal<[Int32], NoError> in
-        return .single([])
-    }
-    |> map { _ -> Void in
-        return Void()
-    }
+    |> switchToLatest
 }

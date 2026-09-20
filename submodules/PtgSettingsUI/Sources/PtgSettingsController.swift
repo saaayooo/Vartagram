@@ -11,6 +11,10 @@ import AccountUtils
 import PresentationDataUtils
 
 private final class PtgSettingsControllerArguments {
+    let switchGhostModeRead: (Bool) -> Void
+    let switchGhostModeStories: (Bool) -> Void
+    let switchGhostModeOnline: (Bool) -> Void
+    let switchGhostModeTyping: (Bool) -> Void
     let switchShowPeerId: (Bool) -> Void
     let switchShowChannelCreationDate: (Bool) -> Void
     let switchSuppressForeignAgentNotice: (Bool) -> Void
@@ -34,6 +38,10 @@ private final class PtgSettingsControllerArguments {
     let switchHideAllSecretsOnDeviceShake: (Bool) -> Void
     
     init(
+        switchGhostModeRead: @escaping (Bool) -> Void,
+        switchGhostModeStories: @escaping (Bool) -> Void,
+        switchGhostModeOnline: @escaping (Bool) -> Void,
+        switchGhostModeTyping: @escaping (Bool) -> Void,
         switchShowPeerId: @escaping (Bool) -> Void,
         switchShowChannelCreationDate: @escaping (Bool) -> Void,
         switchSuppressForeignAgentNotice: @escaping (Bool) -> Void,
@@ -56,6 +64,10 @@ private final class PtgSettingsControllerArguments {
         switchHideAllSecretsOnManualAppLock: @escaping (Bool) -> Void,
         switchHideAllSecretsOnDeviceShake: @escaping (Bool) -> Void
     ) {
+        self.switchGhostModeRead = switchGhostModeRead
+        self.switchGhostModeStories = switchGhostModeStories
+        self.switchGhostModeOnline = switchGhostModeOnline
+        self.switchGhostModeTyping = switchGhostModeTyping
         self.switchShowPeerId = switchShowPeerId
         self.switchShowChannelCreationDate = switchShowChannelCreationDate
         self.switchSuppressForeignAgentNotice = switchSuppressForeignAgentNotice
@@ -81,6 +93,7 @@ private final class PtgSettingsControllerArguments {
 }
 
 private enum PtgSettingsSection: Int32 {
+    case ayuGram
     case showProfileData
     case experimental
     case channels
@@ -92,6 +105,16 @@ private enum PtgSettingsSection: Int32 {
 }
 
 private enum PtgSettingsEntry: ItemListNodeEntry {
+    case ayuGramHeader(String)
+    case ghostModeRead(String, Bool)
+    case ghostModeReadInfo(String)
+    case ghostModeStories(String, Bool)
+    case ghostModeStoriesInfo(String)
+    case ghostModeOnline(String, Bool)
+    case ghostModeOnlineInfo(String)
+    case ghostModeTyping(String, Bool)
+    case ghostModeTypingInfo(String)
+
     case showProfileInfoHeader(String)
     case showPeerId(String, Bool)
     case showChannelCreationDate(String, Bool)
@@ -138,6 +161,8 @@ private enum PtgSettingsEntry: ItemListNodeEntry {
     
     var section: ItemListSectionId {
         switch self {
+        case .ayuGramHeader, .ghostModeRead, .ghostModeReadInfo, .ghostModeStories, .ghostModeStoriesInfo, .ghostModeOnline, .ghostModeOnlineInfo, .ghostModeTyping, .ghostModeTypingInfo:
+            return PtgSettingsSection.ayuGram.rawValue
         case .showProfileInfoHeader, .showPeerId, .showChannelCreationDate:
             return PtgSettingsSection.showProfileData.rawValue
         case .enableQuickReaction, .enableQuickReactionInfo, .enableLiveText, .enableLiveTextInfo, .enableSwipeActionsForChats, .enableSwipeActionsForChatsInfo, .enableSwipeToStoryCamera, .enableSwipeToStoryCameraInfo:
@@ -159,6 +184,24 @@ private enum PtgSettingsEntry: ItemListNodeEntry {
     
     var stableId: Int32 {
         switch self {
+        case .ayuGramHeader:
+            return -10
+        case .ghostModeRead:
+            return -9
+        case .ghostModeReadInfo:
+            return -8
+        case .ghostModeStories:
+            return -7
+        case .ghostModeStoriesInfo:
+            return -6
+        case .ghostModeOnline:
+            return -5
+        case .ghostModeOnlineInfo:
+            return -4
+        case .ghostModeTyping:
+            return -3
+        case .ghostModeTypingInfo:
+            return -2
         case .showProfileInfoHeader:
             return -1
         case .showPeerId:
@@ -233,6 +276,26 @@ private enum PtgSettingsEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! PtgSettingsControllerArguments
         switch self {
+        case let .ayuGramHeader(title):
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: title, sectionId: self.section)
+        case let .ghostModeRead(title, value):
+            return ItemListSwitchItem(presentationData: presentationData, title: title, value: value, sectionId: self.section, style: .blocks, updated: { updatedValue in
+                arguments.switchGhostModeRead(updatedValue)
+            })
+        case let .ghostModeStories(title, value):
+            return ItemListSwitchItem(presentationData: presentationData, title: title, value: value, sectionId: self.section, style: .blocks, updated: { updatedValue in
+                arguments.switchGhostModeStories(updatedValue)
+            })
+        case let .ghostModeOnline(title, value):
+            return ItemListSwitchItem(presentationData: presentationData, title: title, value: value, sectionId: self.section, style: .blocks, updated: { updatedValue in
+                arguments.switchGhostModeOnline(updatedValue)
+            })
+        case let .ghostModeTyping(title, value):
+            return ItemListSwitchItem(presentationData: presentationData, title: title, value: value, sectionId: self.section, style: .blocks, updated: { updatedValue in
+                arguments.switchGhostModeTyping(updatedValue)
+            })
+        case let .ghostModeReadInfo(text), let .ghostModeStoriesInfo(text), let .ghostModeOnlineInfo(text), let .ghostModeTypingInfo(text):
+            return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
         case let .showPeerId(title, value):
             return ItemListSwitchItem(presentationData: presentationData, title: title, value: value, sectionId: self.section, style: .blocks, updated: { updatedValue in
                 arguments.switchShowPeerId(updatedValue)
@@ -336,6 +399,16 @@ private struct PtgSettingsState: Equatable {
 private func ptgSettingsControllerEntries(presentationData: PresentationData, settings: PtgSettings, experimentalSettings: ExperimentalUISettings, ptgAccountSettings: PtgAccountSettings) -> [PtgSettingsEntry] {
     var entries: [PtgSettingsEntry] = []
     
+    entries.append(.ayuGramHeader("AYUGRAM / ПРИЗРАЧНЫЙ РЕЖИМ"))
+    entries.append(.ghostModeRead("Нечиталка сообщений", ptgAccountSettings.ghostModeRead))
+    entries.append(.ghostModeReadInfo("Не помечать входящие сообщения как прочитанные при открытии чата."))
+    entries.append(.ghostModeStories("Скрытный просмотр историй", ptgAccountSettings.ghostModeStories))
+    entries.append(.ghostModeStoriesInfo("Смотреть истории без отправки отметки о просмотре автору."))
+    entries.append(.ghostModeOnline("Невидимка (Скрыть онлайн)", ptgAccountSettings.ghostModeOnline))
+    entries.append(.ghostModeOnlineInfo("Не обновлять статус «В сети» при нахождении в приложении."))
+    entries.append(.ghostModeTyping("Скрывать статус набора", ptgAccountSettings.skipSetTyping))
+    entries.append(.ghostModeTypingInfo("Собеседник не увидит статус «печатает...» при наборе сообщения."))
+    
     entries.append(.showProfileInfoHeader(presentationData.strings.PtgSettings_ShowProfileInfoHeader.uppercased()))
     entries.append(.showPeerId(presentationData.strings.PtgSettings_ShowPeerId, settings.showPeerId))
     entries.append(.showChannelCreationDate(presentationData.strings.PtgSettings_ShowChannelCreationDate, settings.showChannelCreationDate))
@@ -389,7 +462,15 @@ public func ptgSettingsController(context: AccountContext) -> ViewController {
     
     var presentControllerImpl: ((ViewController, ViewControllerPresentationArguments) -> Void)?
     
-    let arguments = PtgSettingsControllerArguments(switchShowPeerId: { value in
+    let arguments = PtgSettingsControllerArguments(switchGhostModeRead: { value in
+        let _ = updatePtgAccountSettings(engine: context.engine, { $0.withUpdated(ghostModeRead: value) }).start()
+    }, switchGhostModeStories: { value in
+        let _ = updatePtgAccountSettings(engine: context.engine, { $0.withUpdated(ghostModeStories: value) }).start()
+    }, switchGhostModeOnline: { value in
+        let _ = updatePtgAccountSettings(engine: context.engine, { $0.withUpdated(ghostModeOnline: value) }).start()
+    }, switchGhostModeTyping: { value in
+        let _ = updatePtgAccountSettings(engine: context.engine, { $0.withUpdated(skipSetTyping: value) }).start()
+    }, switchShowPeerId: { value in
         updateSettings(context, statePromise) { settings in
             return settings.withUpdated(showPeerId: value)
         }
@@ -543,7 +624,7 @@ public func ptgSettingsController(context: AccountContext) -> ViewController {
     |> map { presentationData, state, sharedData, ptgAccountSettings -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let experimentalSettings: ExperimentalUISettings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? ExperimentalUISettings.defaultSettings
         
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text(presentationData.strings.PtgSettings_Title), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back), animateChanges: false)
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("AyuGram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back), animateChanges: false)
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: ptgSettingsControllerEntries(presentationData: presentationData, settings: state.settings, experimentalSettings: experimentalSettings, ptgAccountSettings: ptgAccountSettings), style: .blocks, animateChanges: false)
         
         return (controllerState, (listState, arguments))
@@ -666,11 +747,23 @@ extension PtgSettings {
 
 extension PtgAccountSettings {
     public func withUpdated(ignoreAllContentRestrictions: Bool) -> PtgAccountSettings {
-        return PtgAccountSettings(ignoreAllContentRestrictions: ignoreAllContentRestrictions, skipSetTyping: self.skipSetTyping)
+        return PtgAccountSettings(ignoreAllContentRestrictions: ignoreAllContentRestrictions, skipSetTyping: self.skipSetTyping, ghostModeRead: self.ghostModeRead, ghostModeStories: self.ghostModeStories, ghostModeOnline: self.ghostModeOnline)
     }
     
     public func withUpdated(skipSetTyping: Bool) -> PtgAccountSettings {
-        return PtgAccountSettings(ignoreAllContentRestrictions: self.ignoreAllContentRestrictions, skipSetTyping: skipSetTyping)
+        return PtgAccountSettings(ignoreAllContentRestrictions: self.ignoreAllContentRestrictions, skipSetTyping: skipSetTyping, ghostModeRead: self.ghostModeRead, ghostModeStories: self.ghostModeStories, ghostModeOnline: self.ghostModeOnline)
+    }
+    
+    public func withUpdated(ghostModeRead: Bool) -> PtgAccountSettings {
+        return PtgAccountSettings(ignoreAllContentRestrictions: self.ignoreAllContentRestrictions, skipSetTyping: self.skipSetTyping, ghostModeRead: ghostModeRead, ghostModeStories: self.ghostModeStories, ghostModeOnline: self.ghostModeOnline)
+    }
+    
+    public func withUpdated(ghostModeStories: Bool) -> PtgAccountSettings {
+        return PtgAccountSettings(ignoreAllContentRestrictions: self.ignoreAllContentRestrictions, skipSetTyping: self.skipSetTyping, ghostModeRead: self.ghostModeRead, ghostModeStories: ghostModeStories, ghostModeOnline: self.ghostModeOnline)
+    }
+    
+    public func withUpdated(ghostModeOnline: Bool) -> PtgAccountSettings {
+        return PtgAccountSettings(ignoreAllContentRestrictions: self.ignoreAllContentRestrictions, skipSetTyping: self.skipSetTyping, ghostModeRead: self.ghostModeRead, ghostModeStories: self.ghostModeStories, ghostModeOnline: ghostModeOnline)
     }
 }
 
