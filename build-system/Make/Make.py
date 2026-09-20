@@ -16,6 +16,7 @@ from BuildConfiguration import CodesigningSource, GitCodesigningSource, Director
 import RemoteBuild
 import TartBuild
 import GenerateProfiles
+import ImportCertificates
 
 
 class ResolvedCodesigningData:
@@ -522,6 +523,12 @@ def resolve_configuration(base_path, bazel_command_line: BazelCommandLine, argum
         provisioning_profiles_path=provisioning_path,
         additional_codesigning_output_path=additional_codesigning_output_path
     )
+    if hasattr(arguments, 'codesigningInformationPath') and arguments.codesigningInformationPath is not None and sys.platform == 'darwin':
+        certs_path = os.path.abspath(arguments.codesigningInformationPath + '/certs')
+        if os.path.exists(certs_path):
+            ImportCertificates.import_certificates(certs_path)
+            GenerateProfiles.generate_provisioning_profiles(source_path=provisioning_path, destination_path=provisioning_path)
+
     if codesigning_data.aps_environment is None:
         print('Could not find a valid aps-environment entitlement in the provided provisioning profiles')
         sys.exit(1)
