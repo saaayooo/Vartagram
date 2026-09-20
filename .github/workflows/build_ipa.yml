@@ -1,0 +1,97 @@
+name: Build AyuGram iOS (.ipa)
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a GitHub Release with the IPA'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  BAZEL_USER_ROOT: "/private/var/tmp/_bazel_containerhost"
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: '0'
+
+      - name: Set active Xcode path
+        run: |
+          XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("xcode",""));')
+          if [ -n "$XCODE_VERSION" ] && [ -d "/Applications/Xcode_$XCODE_VERSION.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
+          else
+            sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          fi
+
+      - name: Create canonical source directory
+        run: |
+          set -x
+          sudo mkdir -p /Users/Shared
+          cp -R "$GITHUB_WORKSPACE" /Users/Shared/
+          mv "/Users/Shared/$(basename "$GITHUB_WORKSPACE")" /Users/Shared/telegram-ios
+
+      - name: Bazel cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.BAZEL_USER_ROOT }}
+          key: ${{ runner.os }}-bazel-cache-ayugram
+
+      - name: Build AyuGram IPA
+        run: |
+          set -x
+          SOURCE_DIR=/Users/Shared/telegram-ios
+          cd $SOURCE_DIR
+
+          BUILD_NUMBER_OFFSET="$(cat build_number_offset 2>/dev/null || echo 0)"
+          export APP_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("app", "1.0"));')
+          export COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo 1)
+          export BUILD_NUMBER="$((COMMIT_COUNT + BUILD_NUMBER_OFFSET))"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+
+          rm -rf $HOME/telegram-configuration
+          mkdir -p $HOME/telegram-configuration
+          cp build-system/appstore-configuration.json $HOME/telegram-configuration/config.json
+          mkdir -p artifacts
+
+          python3 -u build-system/Make/Make.py \
+            --bazelUserRoot="$BAZEL_USER_ROOT" \
+            build \
+            --configurationPath="$HOME/telegram-configuration/config.json" \
+            --codesigningInformationPath="build-system/fake-codesigning" \
+            --buildNumber=$BUILD_NUMBER \
+            --configuration=release_arm64
+
+          IPA_PATH=$(find bazel-bin build artifacts -name "*.ipa" 2>/dev/null | head -n 1)
+          if [ -z "$IPA_PATH" ]; then
+            IPA_PATH="artifacts/Telegram.ipa"
+          fi
+
+          mkdir -p "$GITHUB_WORKSPACE/output"
+          cp "$IPA_PATH" "$GITHUB_WORKSPACE/output/AyuGram.ipa"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AyuGram-iOS-IPA
+          path: output/AyuGram.ipa
+          retention-days: 14
+
+      - name: Create Release
+        if: ${{ github.event.inputs.create_release == 'true' || github.event.inputs.create_release == true }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}
+          name: AyuGram iOS v${{ env.APP_VERSION }} (Build ${{ env.BUILD_NUMBER }})
+          files: output/AyuGram.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
