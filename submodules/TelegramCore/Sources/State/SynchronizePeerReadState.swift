@@ -315,6 +315,10 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
 
 private func pushPeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId) -> Signal<Never, PeerReadStateValidationError> {
     let currentReadState = postbox.transaction { transaction -> (MessageId.Namespace, PeerReadState)? in
+        let ptgSettings = PtgAccountSettings(transaction)
+        if ptgSettings.ghostModeRead {
+            return nil
+        }
         if let readStates = transaction.getPeerReadStates(peerId) {
             for (namespace, readState) in readStates {
                 if namespace == Namespaces.Message.Cloud || namespace == Namespaces.Message.SecretIncoming {

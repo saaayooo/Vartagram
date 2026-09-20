@@ -1136,7 +1136,7 @@ private func settingsItems(data: PeerInfoScreenData?, context: AccountContext, p
         currentAppIcon = appIcons.filter { $0.isDefault }.first
     }
 
-    items[.ptgSettings]!.append(PeerInfoScreenDisclosureItem(id: 0, text: "AyuGram", icon: renderIcon(name: currentAppIcon!.imageName, mask: PresentationResourcesSettings.savedMessages?.cgImage), action: {
+    items[.ptgSettings]!.append(PeerInfoScreenDisclosureItem(id: 0, text: "Swiftgram", icon: renderIcon(name: currentAppIcon!.imageName, mask: PresentationResourcesSettings.savedMessages?.cgImage), action: {
         interaction.openSettings(.ptgSettings)
     }))
 

@@ -399,7 +399,7 @@ private struct PtgSettingsState: Equatable {
 private func ptgSettingsControllerEntries(presentationData: PresentationData, settings: PtgSettings, experimentalSettings: ExperimentalUISettings, ptgAccountSettings: PtgAccountSettings) -> [PtgSettingsEntry] {
     var entries: [PtgSettingsEntry] = []
     
-    entries.append(.ayuGramHeader("AYUGRAM / ПРИЗРАЧНЫЙ РЕЖИМ"))
+    entries.append(.ayuGramHeader("SWIFTGRAM / ПРИЗРАЧНЫЙ РЕЖИМ"))
     entries.append(.ghostModeRead("Нечиталка сообщений", ptgAccountSettings.ghostModeRead))
     entries.append(.ghostModeReadInfo("Не помечать входящие сообщения как прочитанные при открытии чата."))
     entries.append(.ghostModeStories("Скрытный просмотр историй", ptgAccountSettings.ghostModeStories))
@@ -624,7 +624,7 @@ public func ptgSettingsController(context: AccountContext) -> ViewController {
     |> map { presentationData, state, sharedData, ptgAccountSettings -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let experimentalSettings: ExperimentalUISettings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? ExperimentalUISettings.defaultSettings
         
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("AyuGram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back), animateChanges: false)
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Swiftgram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back), animateChanges: false)
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: ptgSettingsControllerEntries(presentationData: presentationData, settings: state.settings, experimentalSettings: experimentalSettings, ptgAccountSettings: ptgAccountSettings), style: .blocks, animateChanges: false)
         
         return (controllerState, (listState, arguments))

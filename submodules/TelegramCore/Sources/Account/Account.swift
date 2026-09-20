@@ -1227,12 +1227,23 @@ public class Account {
         
         self.mediaReferenceRevalidationContext = MediaReferenceRevalidationContext()
         
+        let ghostSettingsSignal = Signal<PtgAccountSettings, NoError> { subscriber in
+            subscriber.putNext(.default)
+            return (self.postbox.preferencesView(keys: [ApplicationSpecificPreferencesKeys.ptgAccountSettings])
+            |> map { view -> PtgAccountSettings in
+                return view.values[ApplicationSpecificPreferencesKeys.ptgAccountSettings]?.get(PtgAccountSettings.self) ?? .default
+            }).start(next: { settings in
+                subscriber.putNext(settings)
+            }, completed: {
+                subscriber.putCompletion()
+            })
+        }
+        
         let effectiveShouldKeepOnlinePresence = combineLatest(
             self.shouldKeepOnlinePresence.get(),
-            self.postbox.preferencesView(keys: [ApplicationSpecificPreferencesKeys.ptgAccountSettings])
+            ghostSettingsSignal
         )
-        |> map { shouldKeepOnline, view -> Bool in
-            let settings = view.values[ApplicationSpecificPreferencesKeys.ptgAccountSettings]?.get(PtgAccountSettings.self) ?? .default
+        |> map { shouldKeepOnline, settings -> Bool in
             if settings.ghostModeOnline {
                 return false
             }
@@ -1242,7 +1253,7 @@ public class Account {
         
         self.stateManager = AccountStateManager(accountPeerId: self.peerId, accountManager: accountManager, postbox: self.postbox, network: self.network, callSessionManager: self.callSessionManager, addIsContactUpdates: { [weak self] updates in
             self?.contactSyncManager?.addIsContactUpdates(updates)
-        }, shouldKeepOnlinePresence: effectiveShouldKeepOnlinePresence, peerInputActivityManager: self.peerInputActivityManager, auxiliaryMethods: auxiliaryMethods)
+        }, shouldKeepOnlinePresence: self.shouldKeepOnlinePresence.get(), peerInputActivityManager: self.peerInputActivityManager, auxiliaryMethods: auxiliaryMethods)
         
         self.viewTracker = AccountViewTracker(account: self)
         self.viewTracker.resetPeerHoleManagement = { [weak self] peerId in
