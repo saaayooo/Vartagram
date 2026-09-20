@@ -167,6 +167,29 @@ def load_codesigning_data_from_git(working_dir, repo_url, temp_key_path, branch,
     decrypt_codesigning_directory_recursively(encrypted_working_dir + '/certs', decrypted_working_dir + '/certs', password)
 
 
+def load_profile_dict(file_path):
+    try:
+        with open(file_path, 'rb') as f:
+            content = f.read()
+        start = content.find(b'<?xml')
+        end = content.find(b'</plist>')
+        if start != -1 and end != -1:
+            return plistlib.loads(content[start:end + len(b'</plist>')])
+    except Exception:
+        pass
+
+    profile_data = run_executable_with_output('openssl', arguments=[
+        'smime',
+        '-inform',
+        'der',
+        '-verify',
+        '-noverify',
+        '-in',
+        file_path
+    ], decode=False, stderr_to_stdout=False, check_result=False)
+    return plistlib.loads(profile_data)
+
+
 def copy_profiles_from_directory(source_path, destination_path, team_id, bundle_id):
     profile_name_mapping = {
         '.SiriIntents': 'Intents',
@@ -186,17 +209,7 @@ def copy_profiles_from_directory(source_path, destination_path, team_id, bundle_
             if not file_path.endswith('.mobileprovision'):
                 continue
 
-            profile_data = run_executable_with_output('openssl', arguments=[
-                'smime',
-                '-inform',
-                'der',
-                '-verify',
-                '-noverify',
-                '-in',
-                file_path
-            ], decode=False, stderr_to_stdout=False, check_result=True)
-
-            profile_dict = plistlib.loads(profile_data)
+            profile_dict = load_profile_dict(file_path)
             profile_name = profile_dict['Entitlements']['application-identifier']
 
             if profile_name.startswith(team_id + '.' + bundle_id):
@@ -214,17 +227,7 @@ def resolve_aps_environment_from_directory(source_path, team_id, bundle_id):
             if not file_path.endswith('.mobileprovision'):
                 continue
 
-            profile_data = run_executable_with_output('openssl', arguments=[
-                'smime',
-                '-inform',
-                'der',
-                '-verify',
-                '-noverify',
-                '-in',
-                file_path
-            ], decode=False, stderr_to_stdout=False, check_result=True)
-
-            profile_dict = plistlib.loads(profile_data)
+            profile_dict = load_profile_dict(file_path)
             profile_name = profile_dict['Entitlements']['application-identifier']
 
             if profile_name.startswith(team_id + '.' + bundle_id):
